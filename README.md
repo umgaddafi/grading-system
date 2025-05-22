@@ -11,7 +11,7 @@ It also allows Teachers to generate a report for individual student if there is 
 
 ## ✅ How to Use
 
-1. Download the `folder_encrypt_decrypt.exe` file above.
+1. Download the `GradingSys.exe` file above.
 2. Double-click it to install and launch the application.
 3. username: admin 
 4. password: admin123
