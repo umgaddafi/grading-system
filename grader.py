@@ -10,6 +10,7 @@ from PyQt6.QtCore import Qt, QMarginsF
 import os
 import json
 import csv
+import pathlib
 
 class Student:
     def __init__(self, name, id_number, ca, practical, exam):
@@ -38,7 +39,7 @@ class Student:
 class StudentManagementSystem(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Student Management System")
+        self.setWindowTitle("Student Grading System")
         self.setWindowIcon(QIcon("images/sms.png"))
         self.setGeometry(100, 100, 900, 600)
         self.students = []
@@ -229,13 +230,15 @@ class StudentManagementSystem(QMainWindow):
             self.refresh_table()
 
 
+    
     def export_csv(self):
-        with open("students.csv", "w", newline='') as f:
+        csv_path = self.get_gradesys_path() / "students.csv"
+        with open(csv_path, "w", newline='') as f:
             writer = csv.writer(f)
             writer.writerow(["Name", "ID Number", "CA", "Practical", "Exam", "Total", "Grade"])
             for s in self.students:
                 writer.writerow([s.name, s.id_number, s.ca, s.practical, s.exam, s.total, s.grade])
-        QMessageBox.information(self, "Exported", "Students exported to students.csv")
+        QMessageBox.information(self, "Exported", f"Students exported to: {csv_path}")
 
     def update_filter_options(self):
         current = self.filter_combo.currentText()
@@ -244,10 +247,22 @@ class StudentManagementSystem(QMainWindow):
         grades = sorted(set(s.grade for s in self.students))
         self.filter_combo.addItems(grades)
         self.filter_combo.setCurrentText(current)
+    
+    def get_gradesys_path(self):
+        documents_dir = pathlib.Path.home() / "Documents"
+        gradesys_dir = documents_dir / "GradeSys"
+        gradesys_dir.mkdir(parents=True, exist_ok=True)
+        return gradesys_dir
+
+    def save_data(self):
+        file_path = self.get_gradesys_path() /  "students.json"
+        with open(file_path, "w") as f:
+            json.dump([s.__dict__ for s in self.students], f, indent=4)
 
     def load_data(self):
-        if os.path.exists("students.json"):
-            with open("students.json", "r") as f:
+        file_path = self.get_gradesys_path() / "students.json"
+        if file_path.exists():
+            with open(file_path, "r") as f:
                 for item in json.load(f):
                     name = item.get("name")
                     id_number = item.get("id_number", "")
@@ -255,11 +270,7 @@ class StudentManagementSystem(QMainWindow):
                     practical = item.get("practical", 0)
                     exam = item.get("exam", 0)
                     self.students.append(Student(name, id_number, ca, practical, exam))
-
-    def save_data(self):
-        with open("students.json", "w") as f:
-            json.dump([s.__dict__ for s in self.students], f, indent=4)
-
+    
     
     def print_report_card(self):
         if not self.students:
@@ -428,15 +439,15 @@ class StudentManagementSystem(QMainWindow):
         """
 
         safe_id = "".join(c for c in student.id_number if c.isalnum() or c in ('-', '_'))
-        output_dir = "individual_cards"
-        os.makedirs(output_dir, exist_ok=True)  
-        file_path = os.path.join(output_dir, f"{safe_id}.pdf")
+        output_dir = self.get_gradesys_path() / "individual_cards"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        file_path = output_dir / f"{safe_id}.pdf"
 
         document = QTextDocument()
         document.setHtml(html)
         printer = QPrinter()
         printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
-        printer.setOutputFileName(file_path)
+        printer.setOutputFileName(str(file_path))
         printer.setPageMargins(QMarginsF(1, 0, 5, 1))
         document.print(printer)
 
