@@ -1,48 +1,31 @@
 from PyQt6.QtWidgets import (
-     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QTableWidget, QTableWidgetItem, QInputDialog, QMessageBox,
-    QLineEdit, QComboBox, QLabel, QFileDialog
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget,
+    QTableWidgetItem, QInputDialog, QMessageBox, QLineEdit, QComboBox, QLabel, QFileDialog
 )
-import base64
 from PyQt6.QtGui import QIcon, QTextDocument
 from PyQt6.QtPrintSupport import QPrinter
-from PyQt6.QtCore import Qt, QMarginsF
-import os
+from PyQt6.QtCore import Qt, QMarginsF, pyqtSignal
+from student import Student
+import base64
 import json
 import csv
 import pathlib
+from add_student_dialog import AddStudentDialog
 
-class Student:
-    def __init__(self, name, id_number, ca, practical, exam):
-        self.name = name
-        self.id_number = id_number.upper()
-        self.ca = ca
-        self.practical = practical
-        self.exam = exam
-        self.total = ca + practical + exam
-        self.grade = self.calculate_grade()
-
-    def calculate_grade(self):
-        if self.total >= 70:
-            return "A"
-        elif self.total >= 60:
-            return "B"
-        elif self.total >= 50:
-            return "C"
-        elif self.total >= 45:
-            return "D"
-        elif self.total >= 40:
-            return "E"
-        else:
-            return "F"
 
 class StudentManagementSystem(QMainWindow):
-    def __init__(self):
+
+    logout_requested = pyqtSignal()
+    def __init__(self, username):
         super().__init__()
+        self.username = username
+        self.logout_requested.connect(self.handle_logout)
+        self.students = []
+
         self.setWindowTitle("Student Grading System")
         self.setWindowIcon(QIcon("images/sms.png"))
         self.setGeometry(100, 100, 900, 600)
-        self.students = []
+
         self.load_data()
         self.apply_styles()
         self.init_ui()
@@ -95,29 +78,45 @@ class StudentManagementSystem(QMainWindow):
         self.setCentralWidget(self.central_widget)
         layout = QVBoxLayout()
 
-        search_layout = QHBoxLayout()
+        # Top bar with username and logout
+        top_layout = QHBoxLayout()
+        user_label = QLabel(f"Logged in as: {self.username}")
+        user_label.setStyleSheet("font-weight: normal; color: #555;")
+        logout_btn = QPushButton("Logout")
+        logout_btn.setStyleSheet("background-color: #e74c3c; color: white;")
+        logout_btn.clicked.connect(self.logout)
+        top_layout.addWidget(user_label)
+        top_layout.addStretch()
+        top_layout.addWidget(logout_btn)
+        layout.addLayout(top_layout)
+
+        # Search and filter
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search by name...")
         search_btn = QPushButton("Search")
         search_btn.clicked.connect(self.refresh_table)
+
         self.filter_combo = QComboBox()
         self.filter_combo.addItem("All Grades")
         self.update_filter_options()
         self.filter_combo.currentTextChanged.connect(self.refresh_table)
+
+        search_layout = QHBoxLayout()
         search_layout.addWidget(QLabel("Search:"))
         search_layout.addWidget(self.search_input)
         search_layout.addWidget(search_btn)
         search_layout.addWidget(QLabel("Filter by Grade:"))
         search_layout.addWidget(self.filter_combo)
-
         layout.addLayout(search_layout)
 
+        # Table
         self.table = QTableWidget()
         self.table.setColumnCount(7)
         self.table.setHorizontalHeaderLabels(["Name", "ID Number", "C.A", "Practical", "Exam", "Total", "Grade"])
         self.table.setColumnWidth(0, 200)
         layout.addWidget(self.table)
 
+        # Buttons
         button_layout = QHBoxLayout()
         for label, action in [
             ("Add Student", self.add_student),
@@ -125,7 +124,7 @@ class StudentManagementSystem(QMainWindow):
             ("Delete Student", self.delete_student),
             ("Export to CSV", self.export_csv),
             ("Print Scores Sheet", self.print_report_card),
-            ("Print Student", self.print_individual_card)  
+            ("Print Student", self.print_individual_card)
         ]:
             btn = QPushButton(label)
             btn.clicked.connect(action)
@@ -134,6 +133,14 @@ class StudentManagementSystem(QMainWindow):
         layout.addLayout(button_layout)
         self.central_widget.setLayout(layout)
         self.refresh_table()
+    def logout(self):
+        reply = QMessageBox.question(self, "Logout", "Are you sure you want to logout?",
+                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            self.logout_requested.emit()  # emit logout signal
+    def handle_logout(self):
+        self.close()
+
 
     def refresh_table(self):
         filter_grade = self.filter_combo.currentText()
@@ -162,23 +169,17 @@ class StudentManagementSystem(QMainWindow):
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(row, col, item)
 
-
     def add_student(self):
-        name, ok1 = QInputDialog.getText(self, "Add Student", "Enter name:")
-        if not ok1 or not name:
-            return
-        id_number, ok2 = QInputDialog.getText(self, "Add Student", "Enter ID Number (e.g., CSC/22U/3334):")
-        if not ok2 or not id_number:
-            return
-        ca, ok3 = QInputDialog.getInt(self, "Add Student", "Enter C.A (0-30):", 0, 0, 30)
-        practical, ok4 = QInputDialog.getInt(self, "Add Student", "Enter Practical (0-20):", 0, 0, 20)
-        exam, ok5 = QInputDialog.getInt(self, "Add Student", "Enter Exam (0-50):", 0, 0, 50)
-        if all([ok3, ok4, ok5]):
+        dialog = AddStudentDialog()
+        if dialog.exec():
+            name, id_number, ca, practical, exam = dialog.get_student_data()
             self.students.append(Student(name, id_number, ca, practical, exam))
             self.save_data()
+
+    
             self.update_filter_options()
             self.refresh_table()
-
+   
     def update_student(self):
         row = self.table.currentRow()
         if row == -1:

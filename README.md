@@ -13,6 +13,4 @@ It also allows Teachers to generate a report for individual student if there is 
 
 1. Download the `GradingSys.exe` file above.
 2. Double-click it to install and launch the application.
-3. username: admin 
-4. password: admin123
-5. Enjoy
+3. Enjoy

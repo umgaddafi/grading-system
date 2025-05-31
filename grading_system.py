@@ -7,6 +7,17 @@ from PyQt6.QtWidgets import QApplication
 
 main_window = None
 
+def run_login_flow():
+    login = LoginDialog()
+    if login.exec():
+        global main_window
+        username = login.logged_in_user
+        main_window = StudentManagementSystem(username)
+        main_window.logout_requested.connect(run_login_flow)  # reconnect signal
+        main_window.show()
+    else:
+        sys.exit()
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     splash = SplashScreen()
@@ -14,14 +25,7 @@ if __name__ == "__main__":
 
     def start_main_app():
         splash.close()
-
-        login = LoginDialog()
-        if login.exec():  
-            global main_window
-            main_window = StudentManagementSystem()
-            main_window.show()
-        else:
-            sys.exit()  
+        run_login_flow()
 
     def update():
         current = splash.progress.value()
