@@ -16,6 +16,7 @@ class ResetDialog(QDialog):
         self.setWindowTitle("Reset Password")
         self.setFixedSize(350, 300)
         self.USER_FILE = self.get_gradesys_path() / "users.json"
+        self.verified_username = None  # Store verified username here
         self.init_ui()
 
     def get_gradesys_path(self):
@@ -89,12 +90,14 @@ class ResetDialog(QDialog):
             QMessageBox.warning(self, "Error", "Username not found.")
         else:
             QMessageBox.information(self, "Verified", "Username found. Please reset your password.")
+            self.verified_username = username  # Store verified username
             self.clear_to_reset_only()
 
     def clear_to_reset_only(self):
-        # Remove all widgets in form layout
-        while self.form_layout.rowCount() > 0:
-            self.form_layout.removeRow(0)
+        # Hide username input widgets instead of deleting
+        self.username_label.hide()
+        self.username_input.hide()
+        self.check_button.hide()
 
         # Add only password reset fields
         self.form_layout.addRow(self.new_password_label, self.new_password_input)
@@ -111,7 +114,7 @@ class ResetDialog(QDialog):
         self.new_password_input.setFocus()
 
     def reset_password(self):
-        username = self.username_input.text().strip()
+        username = self.verified_username  # Use stored verified username
         new_pass = self.new_password_input.text()
         confirm_pass = self.confirm_input.text()
 
@@ -134,4 +137,3 @@ class ResetDialog(QDialog):
 
         QMessageBox.information(self, "Success", "Password reset successfully.")
         self.accept()
-
